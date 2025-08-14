@@ -19,7 +19,7 @@ on:
 env:
   resourceUrl: https://api.fabric.microsoft.com
   TestWorkspace: 4ce63028-8eec-48dd-a1f2-c0b297b34cf4
-  ItemsInScope: "Notebook,Environment,Report,SemanticModel,MirroredDatabase,Lakehouse"
+  ItemsInScope: "Notebook,Dataflow,Environment,Report,SemanticModel,MirroredDatabase,Lakehouse"
 
 jobs:
 
@@ -62,45 +62,3 @@ jobs:
        # Run script to deploy with fabric-cicd to Test
       - name: Run script to deploy with fabric-cicd to Test
         run: python auth_spn_secret_AzDo.py --WorkspaceId ${{env.TestWorkspace}} --Environment "Test" --RepositoryDirectory ".\workspace" --ItemsInScope  ${{env.ItemsInScope}}
-          
-  # Job to deploy to Test via fabric-cicd
-  'Deploy_to_Prod':
-    # Set the dependency for the Test deployment
-    needs: Deploy_to_Test
-    # I use a GitHub-Hosted runner here, you can opt to use a self-hosted one instead
-    runs-on: windows-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
-    steps:
-      
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v4.2.2
-
-      # Use specific version of Python
-      - name: Setup Python
-        uses: actions/setup-python@v5.5.0
-        with:
-          # Version range or exact version of Python or PyPy to use, using SemVer's version range syntax. Reads from .python-version if unset.
-          python-version: 3.11
-
-      # Install fabric-cicd library
-      - name: Install fabric-cicd library
-        run: |
-            python -m pip install --upgrade pip
-            pip install fabric-cicd
-
-      # Authenticate as Service Principal
-      - name: Authenticate as Service Principal
-        run: |
-            Install-Module -Name Az.Accounts -AllowClobber -Force
-
-            $SecureStringPwd = ConvertTo-SecureString ${{secrets.AZURE_CLIENT_SECRET}} -AsPlainText -Force
-            $pscredential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList ${{secrets.AZURE_CLIENT_ID}}, $SecureStringPwd
-                              
-            Connect-AzAccount -ServicePrincipal -Credential $pscredential -Tenant ${{secrets.AZURE_TENANT_ID}}    
-
-            $fabricToken = (Get-AzAccessToken -ResourceUrl ${{env.resourceUrl}}).Token
-
-       # Run script to deploy with fabric-cicd to Test
-      - name: Run script to deploy with fabric-cicd to Prod
-        run: python auth_spn_secret_AzDo.py --WorkspaceId ${{env.TestWorkspace}} --Environment "Prod" --RepositoryDirectory ".\workspace" --ItemsInScope  ${{env.ItemsInScope}}
